@@ -78,7 +78,7 @@ if config["log_to_file"]:
     sys.stderr = open(logfile_path, "w")
 
 # Set bot token, get dispatcher and job queue
-updater = Updater(token=config["bot_token"])
+updater = Updater(token=config["bot_token"], use_context=True)
 dispatcher = updater.dispatcher
 job_queue = updater.job_queue
 
