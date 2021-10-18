@@ -79,7 +79,7 @@ if config["log_to_file"]:
     sys.stderr = open(logfile_path, "w")
 
 # Set bot token, get dispatcher and job queue
-updater = Updater(token=config["bot_token"], use_context=True)
+updater = Updater(token=config["bot_token"])
 dispatcher = updater.dispatcher
 job_queue = updater.job_queue
 
@@ -236,7 +236,8 @@ def kraken_api(method, data=None, private=False, retries=None):
 
 # Decorator to restrict access if user is not the same as in config
 def restrict_access(func):
-    def _restrict_access(bot, update):
+    def _restrict_access(update, context):
+        bot = context.bot
         chat_id = get_chat_id(update)
         if str(chat_id) != config["user_id"]:
             if config["show_access_denied"]:
@@ -250,13 +251,15 @@ def restrict_access(func):
             log(logging.WARNING, msg)
             return
         else:
-            return func(bot, update)
+            return func(update, context)
     return _restrict_access
 
 
 # Get balance of all currencies
 @restrict_access
-def balance_cmd(bot, update):
+### old ver 12?
+### def balance_cmd(update, context):
+def balance_cmd(update, context):
     update.message.reply_text(e_wit + "Retrieving balance...")
 
     # Send request to Kraken to get current balance of all currencies
@@ -322,7 +325,7 @@ def balance_cmd(bot, update):
 
 # Create orders to buy or sell currencies with price limit - choose 'buy' or 'sell'
 @restrict_access
-def trade_cmd(bot, update):
+def trade_cmd(update, context):
     reply_msg = "Buy or sell?"
 
     buttons = [
@@ -340,7 +343,7 @@ def trade_cmd(bot, update):
 
 
 # Save if BUY or SELL order and choose the currency to trade
-def trade_buy_sell(bot, update, chat_data):
+def trade_buy_sell(update, context):
     # Clear data in case command is executed again without properly exiting first
     clear_chat_data(chat_data)
 
@@ -362,7 +365,7 @@ def trade_buy_sell(bot, update, chat_data):
 
 
 # Show confirmation to sell all assets
-def trade_sell_all(bot, update):
+def trade_sell_all(update, context):
     msg = e_qst + "Sell " + bold("all") + " assets to current market price? All open orders will be closed!"
     update.message.reply_text(msg, reply_markup=keyboard_confirm(), parse_mode=ParseMode.MARKDOWN)
 
@@ -370,9 +373,9 @@ def trade_sell_all(bot, update):
 
 
 # Sells all assets for there respective current market value
-def trade_sell_all_confirm(bot, update):
+def trade_sell_all_confirm(update, context):
     if update.message.text.upper() == KeyboardEnum.NO.clean():
-        return cancel(bot, update)
+        return cancel(update, context)
 
     update.message.reply_text(e_wit + "Preparing to sell everything...")
 
@@ -450,7 +453,7 @@ def trade_sell_all_confirm(bot, update):
 
 
 # Save currency to trade and enter price per unit to trade
-def trade_currency(bot, update, chat_data):
+def trade_currency(update, context):
     chat_data["currency"] = update.message.text.upper()
 
     asset_one, asset_two = assets_in_pair(pairs[chat_data["currency"]])
@@ -468,7 +471,7 @@ def trade_currency(bot, update, chat_data):
 
 # Save price per unit and choose how to enter the
 # trade volume (fiat currency, volume or all available funds)
-def trade_price(bot, update, chat_data):
+def trade_price(update, context):
     # Check if key 'market_price' already exists. Yes means that we
     # already saved the values and we only need to enter the volume again
     if "market_price" not in chat_data:
@@ -513,7 +516,7 @@ def trade_price(bot, update, chat_data):
 
 
 # Save volume type decision and enter volume
-def trade_vol_asset(bot, update, chat_data):
+def trade_vol_asset(update, context):
     # Check if correct currency entered
     if chat_data["two"].endswith(update.message.text.upper()):
         chat_data["vol_type"] = update.message.text.upper()
@@ -532,7 +535,7 @@ def trade_vol_asset(bot, update, chat_data):
 
 # Volume type 'VOLUME' chosen - meaning that
 # you can enter the volume directly
-def trade_vol_volume(bot, update, chat_data):
+def trade_vol_volume(update, context):
     chat_data["vol_type"] = update.message.text.upper()
 
     reply_msg = "Enter volume"
@@ -546,7 +549,7 @@ def trade_vol_volume(bot, update, chat_data):
 
 # Volume type 'ALL' chosen - meaning that
 # all available funds will be used
-def trade_vol_all(bot, update, chat_data):
+def trade_vol_all(update, context):
     update.message.reply_text(e_wit + "Calculating volume...")
 
     # Send request to Kraken to get current balance of all currencies
@@ -632,7 +635,7 @@ def trade_vol_all(bot, update, chat_data):
 
 
 # Calculate the volume depending on entered volume type currency
-def trade_volume_asset(bot, update, chat_data):
+def trade_volume_asset(update, context):
     amount = float(update.message.text.replace(",", "."))
     price_per_unit = float(chat_data["price"])
     chat_data["volume"] = trim_zeros(amount / price_per_unit)
@@ -659,7 +662,7 @@ def trade_volume_asset(bot, update, chat_data):
 
 
 # Calculate the volume depending on entered volume type 'VOLUME'
-def trade_volume(bot, update, chat_data):
+def trade_volume(update, context):
     chat_data["volume"] = trim_zeros(float(update.message.text.replace(",", ".")))
 
     # Make sure that the order size is at least the minimum order limit
@@ -733,9 +736,9 @@ def trade_show_conf(update, chat_data):
 
 
 # The user has to confirm placing the order
-def trade_confirm(bot, update, chat_data):
+def trade_confirm(update, context):
     if update.message.text.upper() == KeyboardEnum.NO.clean():
-        return cancel(bot, update, chat_data=chat_data)
+        return cancel(update, context)
 
     update.message.reply_text(e_wit + "Placing order...")
 
@@ -774,7 +777,7 @@ def trade_confirm(bot, update, chat_data):
 
 # Show and manage orders
 @restrict_access
-def orders_cmd(bot, update):
+def orders_cmd(update, context):
     update.message.reply_text(e_wit + "Retrieving orders...")
 
     # Send request to Kraken to get open orders
@@ -821,7 +824,7 @@ def orders_cmd(bot, update):
 
 
 # Choose what to do with the open orders
-def orders_choose_order(bot, update):
+def orders_choose_order(update, context):
     buttons = list()
 
     # Go through all open orders and create a button
@@ -847,7 +850,7 @@ def orders_choose_order(bot, update):
 
 
 # Close all open orders
-def orders_close_all(bot, update):
+def orders_close_all(update, context):
     update.message.reply_text(e_wit + "Closing orders...")
 
     closed_orders = list()
@@ -883,7 +886,7 @@ def orders_close_all(bot, update):
 
 
 # Close the specified order
-def orders_close_order(bot, update):
+def orders_close_order(update, context):
     update.message.reply_text(e_wit + "Closing order...")
 
     req_data = dict()
@@ -903,7 +906,7 @@ def orders_close_order(bot, update):
 
 # Show the last trade price for a currency
 @restrict_access
-def price_cmd(bot, update):
+def price_cmd(update, context):
     # If single-price option is active, get prices for all coins
     if config["single_price"]:
         update.message.reply_text(e_wit + "Retrieving prices...")
@@ -952,7 +955,7 @@ def price_cmd(bot, update):
 
 
 # Choose for which currency to show the last trade price
-def price_currency(bot, update):
+def price_currency(update, context):
     update.message.reply_text(e_wit + "Retrieving price...")
 
     currency = update.message.text.upper()
@@ -975,7 +978,7 @@ def price_currency(bot, update):
 
 # Show the current real money value for a certain asset or for all assets combined
 @restrict_access
-def value_cmd(bot, update):
+def value_cmd(update, context):
     reply_msg = "Choose currency"
 
     footer_btns = [
@@ -991,7 +994,7 @@ def value_cmd(bot, update):
 
 
 # Choose for which currency you want to know the current value
-def value_currency(bot, update):
+def value_currency(update, context):
     update.message.reply_text(e_wit + "Retrieving current value...")
 
     # ALL COINS (balance of all coins)
@@ -1073,7 +1076,7 @@ def value_currency(bot, update):
 
 # Reloads keyboard with available commands
 @restrict_access
-def reload_cmd(bot, update):
+def reload_cmd(update, context):
     msg = e_wit + "Reloading keyboard..."
     update.message.reply_text(msg, reply_markup=keyboard_cmds())
     return ConversationHandler.END
@@ -1082,7 +1085,7 @@ def reload_cmd(bot, update):
 # Get current state of Kraken API
 # Is it under maintenance or functional?
 @restrict_access
-def state_cmd(bot, update):
+def state_cmd(update, context):
     update.message.reply_text(e_wit + "Retrieving API state...")
 
     msg = "Kraken API Status: " + bold(api_state()) + "\nhttps://status.kraken.com"
@@ -1095,7 +1098,13 @@ def state_cmd(bot, update):
     return ConversationHandler.END
 
 
-def start_cmd(bot, update):
+### Old version 12?
+### def start_cmd(update, context):
+def start_cmd(update, context):
+    # Stuff here
+    # args will be available as context.args
+    # jobqueue will be available as context.jobqueue
+
     msg = e_bgn + "Welcome to Kraken-Telegram-Bot!"
     update.message.reply_text(msg, reply_markup=keyboard_cmds())
 
@@ -1127,7 +1136,7 @@ def get_trade_str(trade):
 
 # Shows executed trades with volume and price
 @restrict_access
-def trades_cmd(bot, update):
+def trades_cmd(update, context):
     update.message.reply_text(e_wit + "Retrieving executed trades...")
 
     # Send request to Kraken to get trades history
@@ -1183,7 +1192,7 @@ def trades_cmd(bot, update):
 
 # TODO: Show fee
 # Save if BUY, SELL or ALL trade history and choose how many entries to list
-def trades_next(bot, update):
+def trades_next(update, context):
     if trades:
         # Get number of first items in list (latest trades)
         for items in range(config["history_items"]):
@@ -1214,7 +1223,7 @@ def trades_next(bot, update):
 
 # Shows sub-commands to control the bot
 @restrict_access
-def bot_cmd(bot, update):
+def bot_cmd(update, context):
     reply_msg = "What do you want to do?"
 
     buttons = [
@@ -1234,7 +1243,7 @@ def bot_cmd(bot, update):
 
 
 # Execute chosen sub-cmd of 'bot' cmd
-def bot_sub_cmd(bot, update):
+def bot_sub_cmd(update, context):
     # Update check
     if update.message.text.upper() == KeyboardEnum.UPDATE_CHECK.clean():
         status_code, msg = get_update_state()
@@ -1243,28 +1252,28 @@ def bot_sub_cmd(bot, update):
 
     # Update
     elif update.message.text.upper() == KeyboardEnum.UPDATE.clean():
-        return update_cmd(bot, update)
+        return update_cmd(update, context)
 
     # Restart
     elif update.message.text.upper() == KeyboardEnum.RESTART.clean():
-        restart_cmd(bot, update)
+        restart_cmd(update, context)
 
     # Shutdown
     elif update.message.text.upper() == KeyboardEnum.SHUTDOWN.clean():
-        shutdown_cmd(bot, update)
+        shutdown_cmd(update, context)
 
     # API State
     elif update.message.text.upper() == KeyboardEnum.API_STATE.clean():
-        state_cmd(bot, update)
+        state_cmd(update, context)
 
     # Cancel
     elif update.message.text.upper() == KeyboardEnum.CANCEL.clean():
-        return cancel(bot, update)
+        return cancel(update, context)
 
 
 # Show links to Kraken currency charts
 @restrict_access
-def chart_cmd(bot, update):
+def chart_cmd(update, context):
     # Send only one message with all configured charts
     if config["single_chart"]:
         msg = str()
@@ -1296,7 +1305,7 @@ def chart_cmd(bot, update):
 
 
 # Get chart URL for every coin in config
-def chart_currency(bot, update):
+def chart_currency(update, context):
     currency = update.message.text
 
     for coin, url in config["coin_charts"].items():
@@ -1309,7 +1318,7 @@ def chart_currency(bot, update):
 
 # Choose currency to deposit or withdraw funds to / from
 @restrict_access
-def funding_cmd(bot, update):
+def funding_cmd(update, context):
     reply_msg = "Choose currency"
 
     cancel_btn = [
@@ -1324,7 +1333,7 @@ def funding_cmd(bot, update):
 
 
 # Choose withdraw or deposit
-def funding_currency(bot, update, chat_data):
+def funding_currency(update, context, chat_data):
     # Clear data in case command is executed again without properly exiting first
     clear_chat_data(chat_data)
 
@@ -1349,7 +1358,7 @@ def funding_currency(bot, update, chat_data):
 
 
 # Get wallet addresses to deposit to
-def funding_deposit(bot, update, chat_data):
+def funding_deposit(update, context, chat_data):
     update.message.reply_text(e_wit + "Retrieving wallets to deposit...")
 
     req_data = dict()
@@ -1384,13 +1393,13 @@ def funding_deposit(bot, update, chat_data):
     return ConversationHandler.END
 
 
-def funding_withdraw(bot, update):
+def funding_withdraw(update, context):
     update.message.reply_text("Enter target wallet name", reply_markup=ReplyKeyboardRemove())
 
     return WorkflowEnum.WITHDRAW_WALLET
 
 
-def funding_withdraw_wallet(bot, update, chat_data):
+def funding_withdraw_wallet(update, context, chat_data):
     chat_data["wallet"] = update.message.text
 
     update.message.reply_text("Enter " + chat_data["currency"] + " volume to withdraw")
@@ -1398,7 +1407,7 @@ def funding_withdraw_wallet(bot, update, chat_data):
     return WorkflowEnum.WITHDRAW_VOLUME
 
 
-def funding_withdraw_volume(bot, update, chat_data):
+def funding_withdraw_volume(update, context, chat_data):
     chat_data["volume"] = update.message.text.replace(",", ".")
 
     volume = chat_data["volume"]
@@ -1412,9 +1421,9 @@ def funding_withdraw_volume(bot, update, chat_data):
 
 
 # Withdraw funds from wallet
-def funding_withdraw_confirm(bot, update, chat_data):
+def funding_withdraw_confirm(update, context, chat_data):
     if update.message.text.upper() == KeyboardEnum.NO.clean():
-        return cancel(bot, update, chat_data=chat_data)
+        return cancel(update, context, chat_data=chat_data)
 
     update.message.reply_text(e_wit + "Withdrawal initiated...")
 
@@ -1456,7 +1465,7 @@ def funding_withdraw_confirm(bot, update, chat_data):
 # Download newest script, update the currently running one and restart.
 # If 'config.json' changed, update it also
 @restrict_access
-def update_cmd(bot, update):
+def update_cmd(update, context):
     # Get newest version of this script from GitHub
     headers = {"If-None-Match": config["update_hash"]}
     github_script = requests.get(config["update_url"], headers=headers)
@@ -1499,7 +1508,7 @@ def update_cmd(bot, update):
             file.write(github_script.text)
 
         # Restart the bot
-        restart_cmd(bot, update)
+        restart_cmd(update, context)
 
     # Every other status code
     else:
@@ -1518,7 +1527,7 @@ def shutdown():
 
 # Terminate this script
 @restrict_access
-def shutdown_cmd(bot, update):
+def shutdown_cmd(update, context):
     update.message.reply_text(e_gby + "Shutting down...", reply_markup=ReplyKeyboardRemove())
 
     # See comments on the 'shutdown' function
@@ -1527,7 +1536,7 @@ def shutdown_cmd(bot, update):
 
 # Restart this python script
 @restrict_access
-def restart_cmd(bot, update):
+def restart_cmd(update, context):
     msg = e_wit + "Bot is restarting..."
     update.message.reply_text(msg, reply_markup=ReplyKeyboardRemove())
 
@@ -1537,7 +1546,7 @@ def restart_cmd(bot, update):
 
 # Get current settings
 @restrict_access
-def settings_cmd(bot, update):
+def settings_cmd(update, context):
     settings = str()
     buttons = list()
 
@@ -1563,7 +1572,7 @@ def settings_cmd(bot, update):
 
 
 # Change setting
-def settings_change(bot, update, chat_data):
+def settings_change(update, context, chat_data):
     # Clear data in case command is executed again without properly exiting first
     clear_chat_data(chat_data)
 
@@ -1582,7 +1591,7 @@ def settings_change(bot, update, chat_data):
 
 
 # Save new value for chosen setting
-def settings_save(bot, update, chat_data):
+def settings_save(update, context, chat_data):
     new_value = update.message.text
 
     # Check if new value is a boolean
@@ -1605,9 +1614,9 @@ def settings_save(bot, update, chat_data):
 
 
 # Confirm saving new setting and restart bot
-def settings_confirm(bot, update, chat_data):
+def settings_confirm(update, context, chat_data):
     if update.message.text.upper() == KeyboardEnum.NO.clean():
-        return cancel(bot, update, chat_data=chat_data)
+        return cancel(update, context, chat_data=chat_data)
 
     # Set new value in config dictionary
     config[chat_data["setting"]] = chat_data["value"]
@@ -1619,7 +1628,7 @@ def settings_confirm(bot, update, chat_data):
     update.message.reply_text(e_fns + "New value saved")
 
     # Restart bot to activate new setting
-    restart_cmd(bot, update)
+    restart_cmd(update, context)
 
 
 # Remove all data from 'chat_data' since we are canceling / ending
@@ -1632,7 +1641,7 @@ def clear_chat_data(chat_data):
 
 
 # Will show a cancel message, end the conversation and show the default keyboard
-def cancel(bot, update, chat_data=None):
+def cancel(update, context, chat_data=None):
     # Clear 'chat_data' for next conversation
     clear_chat_data(chat_data)
 
@@ -1721,7 +1730,10 @@ def coin_buttons():
 
 
 # Monitor closed orders
-def check_order_exec(bot, job):
+### Old ver 12?
+### def check_order_exec(bot, job):
+def check_order_exec(context):
+    job = context.job
     # Current datetime
     datetime_now = datetime.datetime.now(datetime.timezone.utc)
     # Datetime minus seconds since last check
@@ -1794,7 +1806,9 @@ def is_conf_sane(trade_pairs):
 
 
 # Make sure preconditions are met and show welcome screen
-def init_cmd(bot, update):
+### Old ver 12?
+### def init_cmd(update, context):
+def init_cmd(update, context):
     uid = config["user_id"]
     cmds = "/initialize - retry again\n/shutdown - shut down the bot"
 
@@ -2044,8 +2058,10 @@ def handle_api_error(response, update, msg_prefix="", send_msg=True):
 
 
 # Handle all telegram and telegram.ext related errors
-def handle_telegram_error(bot, update, error):
-    error_str = "Update '%s' caused error '%s'" % (update, error)
+### Old ver 12?
+### def handle_telegram_error(update, context, error):
+def handle_telegram_error(update, context):
+    error_str = "Update '%s' caused error '%s'" % (update, context.error)
     log(logging.ERROR, error_str)
 
     if config["send_error"]:
