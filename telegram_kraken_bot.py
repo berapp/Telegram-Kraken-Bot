@@ -1518,15 +1518,15 @@ def update_cmd(update, context):
             json.dump(config, cfg, indent=4)
 
         # Get the name of the currently running script
-#        path_split = os.path.split(str(sys.argv[0]))
-#        filename = path_split[len(path_split)-1]
+        path_split = os.path.split(str(sys.argv[0]))
+        filename = path_split[len(path_split)-1]
 
         # Save the content of the remote file
-#        with open(filename, "w") as file:
-#            file.write(github_script.text)
+        with open(filename, "w") as file:
+            file.write(github_script.text)
 
-        msg = "We are not really updating"
-        update.message.reply_text(msg, reply_markup=keyboard_cmds())
+#        msg = "We are not really updating"
+#        update.message.reply_text(msg, reply_markup=keyboard_cmds())
         # Restart the bot
         restart_cmd(update, context)
 
