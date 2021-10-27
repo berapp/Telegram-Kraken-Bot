@@ -1487,34 +1487,35 @@ def update_cmd(update, context):
     # Status code 200 = OK
     elif github_script.status_code == 200:
         log(logging.INFO, "DEBUG 2-2")
-#        # Get github 'config.json' file
-#        last_slash_index = config["update_url"].rfind("/")
-#        log(logging.INFO, "DEBUG 2-2-1")
-#        github_config_path = config["update_url"][:last_slash_index + 1] + "config.json"
-#        log(logging.INFO, "DEBUG 2-2-2")
-#        github_config_file = requests.get(github_config_path)
-#        log(logging.INFO, "DEBUG 2-2-3")
+        # Get github 'config.json' file
+        last_slash_index = config["update_url"].rfind("/")
+        log(logging.INFO, "DEBUG 2-2-1")
+        github_config_path = config["update_url"][:last_slash_index + 1] + "config.json"
+        log(logging.INFO, "DEBUG 2-2-2")
+        github_config_file = requests.get(github_config_path)
+        log(logging.INFO, "DEBUG 2-2-3")
 #        log(logging.INFO, github_config_file.text)
-#        github_config = json.loads(github_config_file.text)
-#        log(logging.INFO, "DEBUG 2-2-4")
+        github_config = json.loads(github_config_file.text)
+        log(logging.INFO, "DEBUG 2-2-4")
 
         # Compare current config keys with
         # config keys from github-config
         log(logging.INFO, "DEBUG 4")
-#        if set(config) != set(github_config):
-#            # Go through all keys in github-config and
-#            # if they are not present in current config, add them
-#            for key, value in github_config.items():
-#                if key not in config:
-#                    config[key] = value
+        if set(config) != set(github_config):
+            # Go through all keys in github-config and
+            # if they are not present in current config, add them
+            for key, value in github_config.items():
+                if key not in config:
+                    log(logging.INFO, "key " + key + "is " + value)
+                    config[key] = value
 
-#        # Save current ETag (hash) of bot script in github-config
-#        e_tag = github_script.headers.get("ETag")
-#        config["update_hash"] = e_tag
+        # Save current ETag (hash) of bot script in github-config
+        e_tag = github_script.headers.get("ETag")
+        config["update_hash"] = e_tag
 
         # Save changed github-config as new config
-#        with open("config.json", "w") as cfg:
-#            json.dump(config, cfg, indent=4)
+        with open("config.json", "w") as cfg:
+            json.dump(config, cfg, indent=4)
 
         # Get the name of the currently running script
 #        path_split = os.path.split(str(sys.argv[0]))
