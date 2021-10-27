@@ -102,3 +102,4 @@ ENV/
 kraken.key
 LICENSE
 config.json_back
+config.json
