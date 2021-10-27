@@ -99,6 +99,6 @@ ENV/
 .DS_Store
 
 # Telegarm-Kraken-Bot related
-config.json
 kraken.key
 LICENSE
+config.json_back

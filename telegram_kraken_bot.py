@@ -260,6 +260,7 @@ def restrict_access(func):
 ### old ver 12?
 ### def balance_cmd(update, context):
 def balance_cmd(update, context):
+    log(logging.INFO, "in balance_cmd")
     update.message.reply_text(e_wit + "Retrieving balance...")
 
     # Send request to Kraken to get current balance of all currencies
@@ -1246,8 +1247,12 @@ def bot_cmd(update, context):
 def bot_sub_cmd(update, context):
     # Update check
     if update.message.text.upper() == KeyboardEnum.UPDATE_CHECK.clean():
+        log(logging.INFO, "in bot_sub_cmd")
+        log(logging.INFO, "DEBUG 1")
         status_code, msg = get_update_state()
+        log(logging.INFO, "DEBUG 2")
         update.message.reply_text(msg)
+        log(logging.INFO, "DEBUG 3")
         return
 
     # Update
@@ -1466,55 +1471,71 @@ def funding_withdraw_confirm(update, context, chat_data):
 # If 'config.json' changed, update it also
 @restrict_access
 def update_cmd(update, context):
+    log(logging.INFO, "DEBUG 1")
     # Get newest version of this script from GitHub
     headers = {"If-None-Match": config["update_hash"]}
     github_script = requests.get(config["update_url"], headers=headers)
+    log(logging.INFO, "DEBUG 2")
+    log(logging.INFO, github_script)
 
     # Status code 304 = Not Modified
     if github_script.status_code == 304:
+        log(logging.INFO, "DEBUG 2-1")
         msg = "You are running the latest version"
         update.message.reply_text(msg, reply_markup=keyboard_cmds())
+        log(logging.INFO, "DEBUG 3")
     # Status code 200 = OK
     elif github_script.status_code == 200:
-        # Get github 'config.json' file
-        last_slash_index = config["update_url"].rfind("/")
-        github_config_path = config["update_url"][:last_slash_index + 1] + "config.json"
-        github_config_file = requests.get(github_config_path)
-        github_config = json.loads(github_config_file.text)
+        log(logging.INFO, "DEBUG 2-2")
+#        # Get github 'config.json' file
+#        last_slash_index = config["update_url"].rfind("/")
+#        log(logging.INFO, "DEBUG 2-2-1")
+#        github_config_path = config["update_url"][:last_slash_index + 1] + "config.json"
+#        log(logging.INFO, "DEBUG 2-2-2")
+#        github_config_file = requests.get(github_config_path)
+#        log(logging.INFO, "DEBUG 2-2-3")
+#        log(logging.INFO, github_config_file.text)
+#        github_config = json.loads(github_config_file.text)
+#        log(logging.INFO, "DEBUG 2-2-4")
 
         # Compare current config keys with
         # config keys from github-config
-        if set(config) != set(github_config):
-            # Go through all keys in github-config and
-            # if they are not present in current config, add them
-            for key, value in github_config.items():
-                if key not in config:
-                    config[key] = value
+        log(logging.INFO, "DEBUG 4")
+#        if set(config) != set(github_config):
+#            # Go through all keys in github-config and
+#            # if they are not present in current config, add them
+#            for key, value in github_config.items():
+#                if key not in config:
+#                    config[key] = value
 
-        # Save current ETag (hash) of bot script in github-config
-        e_tag = github_script.headers.get("ETag")
-        config["update_hash"] = e_tag
+#        # Save current ETag (hash) of bot script in github-config
+#        e_tag = github_script.headers.get("ETag")
+#        config["update_hash"] = e_tag
 
         # Save changed github-config as new config
-        with open("config.json", "w") as cfg:
-            json.dump(config, cfg, indent=4)
+#        with open("config.json", "w") as cfg:
+#            json.dump(config, cfg, indent=4)
 
         # Get the name of the currently running script
-        path_split = os.path.split(str(sys.argv[0]))
-        filename = path_split[len(path_split)-1]
+#        path_split = os.path.split(str(sys.argv[0]))
+#        filename = path_split[len(path_split)-1]
 
         # Save the content of the remote file
-        with open(filename, "w") as file:
-            file.write(github_script.text)
+#        with open(filename, "w") as file:
+#            file.write(github_script.text)
 
+        msg = "We are not really updating"
+        update.message.reply_text(msg, reply_markup=keyboard_cmds())
         # Restart the bot
         restart_cmd(update, context)
 
     # Every other status code
     else:
+        log(logging.INFO, "DEBUG 5")
         msg = e_err + "Update not executed. Unexpected status code: " + github_script.status_code
         update.message.reply_text(msg, reply_markup=keyboard_cmds())
 
+    log(logging.INFO, "DEBUG 2-3")
     return ConversationHandler.END
 
 
@@ -1652,6 +1673,7 @@ def cancel(update, context, chat_data=None):
 
 # Check if GitHub hosts a different script then the currently running one
 def get_update_state():
+    log(logging.INFO, "in get_update_state")
     # Get newest version of this script from GitHub
     headers = {"If-None-Match": config["update_hash"]}
     github_file = requests.get(config["update_url"], headers=headers)
@@ -1732,7 +1754,8 @@ def coin_buttons():
 # Monitor closed orders
 ### Old ver 12?
 ### def check_order_exec(bot, job):
-def check_order_exec(context):
+def check_order_exec(update, context):
+    log(logging.INFO, "in check_order_exec")
     job = context.job
     # Current datetime
     datetime_now = datetime.datetime.now(datetime.timezone.utc)
@@ -1766,10 +1789,12 @@ def check_order_exec(context):
 
 # Start periodical job to check if new bot version is available
 def monitor_updates():
+    log(logging.INFO, "in monitor_updates")
     if config["update_check"] > 0:
         # Check if current bot version is the latest
         def version_check(bot, job):
             status_code, msg = get_update_state()
+            log(logging.INFO, "after get_update_state")
 
             # Status code 200 means that the remote file is not the same
             if status_code == 200:
@@ -2060,6 +2085,7 @@ def handle_api_error(response, update, msg_prefix="", send_msg=True):
 # Handle all telegram and telegram.ext related errors
 ### Old ver 12?
 ### def handle_telegram_error(update, context, error):
+### FIXME
 def handle_telegram_error(update, context):
     error_str = "Update '%s' caused error '%s'" % (update, context.error)
     log(logging.ERROR, error_str)
